@@ -42,9 +42,24 @@ static unsigned has_ov9650;
 unsigned long camif_base_addr;
 static int video_nr = -1;
 
+
+/**********************************************************************
+ * Module Parameters
+ **********************************************************************/
+static int static_allocate = 0;
+
+module_param(static_allocate, int, 0);
+MODULE_PARM_DESC(static_allocate, "Memory allocated statically for the biggest frame size (around 10mb)");
+
 /* camera device(s) */
 static s3c2440camif_dev camera;
 static int s3c2410camif_set_format(s3c2440camif_dev *pcam, u32 format, u32 width, u32 height);
+
+MODULE_DESCRIPTION("v4l2 driver module for s3c2440 camera interface");
+MODULE_AUTHOR("Vladimir Fonov [vladimir.fonov@gmail.com]");
+MODULE_LICENSE("GPL");
+MODULE_SUPPORTED_DEVICE("video");
+
 
 extern s3c2440camif_sensor_operations s3c2440camif_sensor_if;
 
@@ -1124,7 +1139,8 @@ static int camif_release(struct file *file)
 
   free_irq(IRQ_S3C2440_CAM_C, pcam);
 
-  s3c2440camif_deallocate_frame_buf(pcam,S3C2440_FRAME_NUM);
+	if(!static_allocate)
+		s3c2440camif_deallocate_frame_buf(pcam,S3C2440_FRAME_NUM);
 
 	return ret;
 }
@@ -1242,7 +1258,8 @@ static int s3c2410camif_set_format(s3c2440camif_dev *pcam,u32 format,u32 width,u
 	disable_irq(IRQ_S3C2440_CAM_P);
 
 	//deallocate old buffers
-	s3c2440camif_deallocate_frame_buf(pcam,S3C2440_FRAME_NUM);
+	if(!static_allocate)
+		s3c2440camif_deallocate_frame_buf(pcam,S3C2440_FRAME_NUM);
 	
 	//try to get something close from the sensor
 	pcam->sensor.width=width;
@@ -1277,12 +1294,15 @@ static int s3c2410camif_set_format(s3c2440camif_dev *pcam,u32 format,u32 width,u
 	pcam->v2f.fmt.pix.sizeimage=width*height*2; 
 	
   //setup for YCrCb422p mode
-  //TODO: add swithc for other modes
+  //TODO: add switch for other modes
   pcam->Ysize=   pcam->v2f.fmt.pix.width*pcam->v2f.fmt.pix.height;
   pcam->CbCrsize=pcam->v2f.fmt.pix.width*pcam->v2f.fmt.pix.height/2;
 	
-	if((ret=s3c2440camif_allocate_frame_buf(pcam,S3C2440_FRAME_NUM))<0) 
-		return ret;
+	if(!static_allocate)
+	{
+		if((ret=s3c2440camif_allocate_frame_buf(pcam,S3C2440_FRAME_NUM))<0) 
+			return ret;
+	}
 	
 	//update_camif_config(pcam,0);
 	
@@ -1432,9 +1452,8 @@ static int init_s3c2410camif_struct(s3c2440camif_dev * cam)
 	cam->preTargetHsize = 640;
 	cam->preTargetVsize = 512;
 	//TODO: query this from the sensor later
-	
-	
-  //YCbCr422 mode
+
+	//YCbCr422 mode
 	
 	cam->v2f.fmt.pix.pixelformat =  V4L2_PIX_FMT_YUV422P;
 	cam->v2f.fmt.pix.sizeimage =    cam->coTargetHsize*cam->coTargetVsize*2;
@@ -1595,10 +1614,25 @@ static int __init camif_init(void)
 	hw_reset_camif();
 	has_ov9650 = cam->sensor_op->init() >= 0;
 	
-	cam->sensor_op->get_format(&cam->sensor);
 
-	cam->wndHsize = cam->sensor.width;
-	cam->wndVsize = cam->sensor.height;
+	if(static_allocate)
+	{
+		cam->sensor_op->get_largest_format(&cam->sensor);
+		cam->wndHsize = cam->sensor.width;
+		cam->wndVsize = cam->sensor.height;
+		
+		cam->Ysize=   cam->wndHsize*cam->wndVsize;
+		cam->CbCrsize=cam->wndHsize*cam->wndVsize/2;
+	  //allocate memory
+		
+		if((ret=s3c2440camif_allocate_frame_buf(cam,S3C2440_FRAME_NUM))<0) 
+			goto error4;
+		
+	} else {
+		cam->sensor_op->get_format(&cam->sensor);
+		cam->wndHsize = cam->sensor.width;
+		cam->wndVsize = cam->sensor.height;
+	}
 	
 	s3c2410_gpio_setpin(S3C2410_GPG4, 1);
 	
@@ -1621,6 +1655,9 @@ error1:
 static void __exit camif_cleanup(void)
 {
 	s3c2440camif_dev *pcam=&camera;
+
+	if(!static_allocate)
+		s3c2440camif_deallocate_frame_buf(pcam,S3C2440_FRAME_NUM);
 	
 	video_unregister_device(pcam->video_dev);
 	platform_driver_unregister(&s3c2410camif_v4l2_driver);
@@ -1644,7 +1681,3 @@ static void __exit camif_cleanup(void)
 module_init(camif_init);
 module_exit(camif_cleanup);
 
-MODULE_DESCRIPTION("v4l2 driver module for s3c2440 camera interface");
-MODULE_AUTHOR("Vladimir Fonov [vladimir.fonov@gmail.com]");
-MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("video");

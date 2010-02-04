@@ -163,7 +163,7 @@ static int ov9650_init_regs(struct ov9650_reg* regs, u32 len)
 	//	return -1;
 }
 
-int _s3c2440_ov9650_set_format(int mode)
+static int _s3c2440_ov9650_set_format(int mode)
 {
 	if(mode>=sizeof(ov9650_configurations))
 	{
@@ -183,7 +183,7 @@ int _s3c2440_ov9650_set_format(int mode)
 }
 
 
-int s3c2440_ov9650_init(void)
+static int s3c2440_ov9650_init(void)
 {
 	int ret=0;
 	printk(KERN_ALERT"Loading OV9650 driver.........\n");
@@ -210,7 +210,7 @@ int s3c2440_ov9650_init(void)
 	return ret;
 }
 
-int s3c2440_ov9650_set_format(s3c2440camif_sensor_config* cfg)
+static int s3c2440_ov9650_set_format(s3c2440camif_sensor_config* cfg)
 {
 	//try to find the best mode
 	int i;
@@ -237,7 +237,7 @@ int s3c2440_ov9650_set_format(s3c2440camif_sensor_config* cfg)
 	return ret;
 }
 
-int s3c2440_ov9650_get_format(s3c2440camif_sensor_config* cfg)
+static int s3c2440_ov9650_get_format(s3c2440camif_sensor_config* cfg)
 {
 	cfg->width=ov9650_configurations[ov9650_mode].width;
 	cfg->height=ov9650_configurations[ov9650_mode].height;
@@ -245,7 +245,15 @@ int s3c2440_ov9650_get_format(s3c2440camif_sensor_config* cfg)
 	return 0;
 }
 
-int s3c2440_ov9650_cleanup(void)
+static int s3c2440_ov9650_get_largest_format(s3c2440camif_sensor_config* cfg)
+{
+	cfg->width=ov9650_configurations[OV9650_SXGA].width;
+	cfg->height=ov9650_configurations[OV9650_SXGA].height;
+	cfg->pixel_fmt=V4L2_PIX_FMT_YUYV;
+	return 0;
+}
+
+static int s3c2440_ov9650_cleanup(void)
 {
 	//sccb_cleanup();
 	return 0;
@@ -257,6 +265,7 @@ s3c2440camif_sensor_operations s3c2440camif_sensor_if =
 	.cleanup=s3c2440_ov9650_cleanup,
 	.set_format=s3c2440_ov9650_set_format,
 	.get_format=s3c2440_ov9650_get_format,
+	.get_largest_format=s3c2440_ov9650_get_largest_format,
 	.poweron=ov9650_poweron,
 	.poweroff=ov9650_poweroff
 };

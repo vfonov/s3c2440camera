@@ -88,6 +88,7 @@ void __exit s3c2440_ov9650_cleanup(void);*/
 	int (*cleanup)(void);
   int (*set_format)(s3c2440camif_sensor_config* cfg);
   int (*get_format)(s3c2440camif_sensor_config* cfg);
+	int (*get_largest_format)(s3c2440camif_sensor_config* cfg);
 	int (*poweron)(void);
 	int (*poweroff)(void);
 } s3c2440camif_sensor_operations;
