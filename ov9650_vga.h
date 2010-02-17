@@ -18,6 +18,9 @@ static struct ov9650_reg  ov9650_vga[] = {
   {REG_CLKRC,0x80}, /*  Clock control, try to run at 24Mhz  */
 	
   {REG_COM7,0x40}, /*  SCCB reset, output format  */
+	
+	{REG_COM2,0x01}, /*  Output drive  */
+	
   {REG_COM9,0x2e}, /*  Control 9  - gain ceiling  */
   {REG_COM10,0x00}, /*  Slave mode, HREF vs HSYNC, signals negate  */
 	
@@ -98,7 +101,7 @@ static struct ov9650_reg  ov9650_vga[] = {
   {REG_AEB,0x64}, /*  AGC lower limit  */
   {REG_VPT,0xc3}, /*  AGC/AEC fast mode op region  */
   {REG_EXHCH,0x00}, /*  Dummy pixel insert MSB  */
-  {REG_EXHCL,0x46}, /*  Dummy pixel insert LSB  */
+  {REG_EXHCL,0x00}, /*  Dummy pixel insert LSB  */
   {REG_COM11,(1<<7)|(3<<5)}, /*  Night mode, banding filter enable  */
 //0x2a,0x12 0x19
   {REG_GSP,0x40}, /*  Gamma 1  */

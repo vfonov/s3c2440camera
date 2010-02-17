@@ -99,8 +99,8 @@ struct ov9650_reg ov9650_sxga[] = {
   {REG_AEW,0x70}, /*  AGC upper limit  */
   {REG_AEB,0x64}, /*  AGC lower limit  */
   {REG_VPT,0xc3}, /*  AGC/AEC fast mode op region  */
-  {REG_EXHCH,0x12}, /*  Dummy pixel insert MSB  */
-  {REG_EXHCL,0x46}, /*  Dummy pixel insert LSB  */
+  {REG_EXHCH,0x00}, /*  Dummy pixel insert MSB  */
+  {REG_EXHCL,0x00}, /*  Dummy pixel insert LSB  */
   {REG_COM11,0xe0}, /*  Night mode, banding filter enable  */
   {REG_GSP,0x40}, /*  Gamma 1  */
   {0x6d,0x30},

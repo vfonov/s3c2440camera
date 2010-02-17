@@ -1,8 +1,8 @@
 #ifndef __SOFT_SCCB_H__
 #define __SOFT_SCCB_H__
 
-#define SIO_C	S3C2410_GPE14
-#define SIO_D	S3C2410_GPE15
+#define SIO_C	S3C2410_GPE(14)
+#define SIO_D	S3C2410_GPE(15)
 
 #define State(x)	s3c2410_gpio_getpin(x)
 #define High(x)		do{s3c2410_gpio_setpin(x,1); smp_mb();}while(0)
@@ -16,7 +16,8 @@
 
 void sccb_write(u8 IdAddr, u8 SubAddr, u8 data);
 u8 sccb_read(u8 IdAddr, u8 SubAddr);
-int sccb_init(void);
 void sccb_cleanup(void);
+int sccb_init(void);
+
 
 #endif

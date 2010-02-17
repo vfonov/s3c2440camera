@@ -3,7 +3,6 @@
 
 #include <asm/uaccess.h>
 #include <linux/list.h>
-
 #include <media/v4l2-dev.h>
 
 
@@ -91,6 +90,18 @@ void __exit s3c2440_ov9650_cleanup(void);*/
 	int (*get_largest_format)(s3c2440camif_sensor_config* cfg);
 	int (*poweron)(void);
 	int (*poweroff)(void);
+	
+	int (*get_auto_exposure)(void);
+	int (*get_auto_gain)(void);
+	int (*get_auto_wb)(void);
+	int (*get_exposure)(void);
+	int (*get_gain)(void);
+	
+	int (*set_auto_exposure)(int);
+	int (*set_auto_gain)(int);
+	int (*set_auto_wb)(int);
+	int (*set_exposure)(int);
+	int (*set_gain)(int);
 } s3c2440camif_sensor_operations;
 
 /* main s3c2440 camif structure. */
@@ -162,6 +173,8 @@ typedef struct
 	int cmdcode;				// command code, CAMIF_CMD_START, CAMIF_CMD_CFG, etc.
 	wait_queue_head_t cmdqueue;	// wait queue for waiting untile command completed (if in preview or in capturing).
 	wait_queue_head_t cap_queue; //wait queue for waiting captured frame
+	
+	
 	
 } s3c2440camif_dev;
 

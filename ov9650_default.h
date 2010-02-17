@@ -99,7 +99,7 @@ static struct ov9650_reg  ov9650_default[] = { //default parameters for VGA reso
   {REG_AEB,0x64}, /*  AGC lower limit  */
   {REG_VPT,0xc3}, /*  AGC/AEC fast mode op region  */
   {REG_EXHCH,0x00}, /*  Dummy pixel insert MSB  */
-  {REG_EXHCL,0x46}, /*  Dummy pixel insert LSB  */
+  {REG_EXHCL,0x00}, /*  Dummy pixel insert LSB  */
   {REG_COM11,(1<<7)|(3<<5)}, /*  Night mode, banding filter enable  */
 //0x2a,0x12 0x19
   {REG_GSP,0x40}, /*  Gamma 1  */

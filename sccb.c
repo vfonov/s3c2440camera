@@ -6,6 +6,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
+#include <linux/gpio.h>
 #include <asm/io.h>
 #include <linux/semaphore.h>
 #include <mach/regs-gpio.h>
