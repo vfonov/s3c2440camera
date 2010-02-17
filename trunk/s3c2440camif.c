@@ -30,6 +30,8 @@
 #include <mach/regs-gpioj.h>
 #include <mach/regs-clock.h>
 #include <mach/map.h>
+#include <linux/gpio.h>
+
 #include "sccb.h"
 #include "s3c2440camif.h"
 
@@ -46,7 +48,7 @@ static int video_nr = -1;
 /**********************************************************************
  * Module Parameters
  **********************************************************************/
-static int static_allocate = 0;
+static int static_allocate = 1;
 
 module_param(static_allocate, int, 0);
 MODULE_PARM_DESC(static_allocate, "Memory allocated statically for the biggest frame size (around 10mb)");
@@ -60,9 +62,55 @@ MODULE_AUTHOR("Vladimir Fonov [vladimir.fonov@gmail.com]");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("video");
 
+/* List of all V4Lv2 controls supported by the driver */
+static struct v4l2_queryctrl s3c2410camif_controls[] = {
+ {
+		.id             = V4L2_CID_EXPOSURE_AUTO,
+		.type           = V4L2_CTRL_TYPE_BOOLEAN,
+		.name           = "Auto Exposure",
+		.minimum        = 0,
+		.maximum        = 1,
+		.step           = 1,
+		.default_value  = 1,
+  }, {
+		.id             = V4L2_CID_EXPOSURE,
+		.type           = V4L2_CTRL_TYPE_INTEGER,
+		.name           = "Exposure",
+		.minimum        = 1,
+		.maximum        = 0xffff,
+		.step           = 1,
+		.default_value  = 1,
+		.flags          = V4L2_CTRL_FLAG_SLIDER,
+	},{
+		.id             = V4L2_CID_AUTOGAIN,
+		.type           = V4L2_CTRL_TYPE_BOOLEAN,
+		.name           = "Automatic Gain",
+		.minimum        = 0,
+		.maximum        = 1,
+		.step           = 1,
+		.default_value  = 1,
+	},{
+		.id             = V4L2_CID_GAIN,
+		.type           = V4L2_CTRL_TYPE_INTEGER,
+		.name           = "Analog Gain",
+		.minimum        = 0,
+		.maximum        = 0x3ff,
+		.step           = 1,
+		.default_value  = 1,
+		.flags          = V4L2_CTRL_FLAG_SLIDER,
+	},{
+		.id             = V4L2_CID_AUTO_WHITE_BALANCE,
+		.type           = V4L2_CTRL_TYPE_BOOLEAN,
+		.name           = "Auto WB",
+		.minimum        = 0,
+		.maximum        = 1,
+		.step           = 0,
+		.default_value  = 1,
+	},
+	/*TODO: get more controls to work */
+};
 
 extern s3c2440camif_sensor_operations s3c2440camif_sensor_if;
-
 
 /* software reset camera interface. */
 static void __inline__ soft_reset_camif(void)
@@ -102,15 +150,15 @@ static void __inline__ hw_reset_camif(void)
  */
 static void s3c2440camif_free_frame_buf(s3c2440camif_dev * cam)
 {
-        int i;
+	//int i;
 
-        /*for (i = 0; i < S3C2440_FRAME_NUM; i++) {
-						cam->frame[i].buffer.flags = V4L2_BUF_FLAG_MAPPED;
-        }*/
+	/*for (i = 0; i < S3C2440_FRAME_NUM; i++) {
+			cam->frame[i].buffer.flags = V4L2_BUF_FLAG_MAPPED;
+	}*/
 
-        INIT_LIST_HEAD(&cam->ready_q);
-        INIT_LIST_HEAD(&cam->working_q);
-        INIT_LIST_HEAD(&cam->done_q);
+	INIT_LIST_HEAD(&cam->ready_q);
+	INIT_LIST_HEAD(&cam->working_q);
+	INIT_LIST_HEAD(&cam->done_q);
 }
 
 
@@ -130,13 +178,13 @@ static int s3c2440camif_deallocate_frame_buf(s3c2440camif_dev * cam, int count)
 	//printk(KERN_ALERT"s3c2440camif: Deallocating %d buffers\n",count);
 	for (i = 0; i < count; i++) {
 		if(cam->frame[i].Y_virt_base)
-			free_pages(cam->frame[i].Y_virt_base, cam->frame[i].Y_order);
+			free_pages((unsigned int)cam->frame[i].Y_virt_base, cam->frame[i].Y_order);
 		
 		if(cam->frame[i].CB_virt_base)
-			free_pages(cam->frame[i].CB_virt_base, cam->frame[i].CBCR_order);
+			free_pages((unsigned int)cam->frame[i].CB_virt_base, cam->frame[i].CBCR_order);
 		
 		if(cam->frame[i].CR_virt_base)
-			free_pages(cam->frame[i].CR_virt_base, cam->frame[i].CBCR_order);
+			free_pages((unsigned int)cam->frame[i].CR_virt_base, cam->frame[i].CBCR_order);
 		
 			//dma_free_coherent(0,PAGE_ALIGN(cam->v2f.fmt.pix.sizeimage),cam->frame[i].virt_base,cam->frame[i].phy_base);
 		cam->frame[i].Y_virt_base=NULL;
@@ -169,10 +217,9 @@ static int s3c2440camif_allocate_frame_buf(s3c2440camif_dev * cam, int count)
 		cam->frame[i].Y_order = get_order(cam->Ysize);
 		cam->frame[i].CBCR_order = get_order(cam->CbCrsize);
 		
-		cam->frame[i].Y_virt_base = __get_free_pages(GFP_KERNEL|GFP_DMA, cam->frame[i].Y_order);
-		
-		cam->frame[i].CB_virt_base = __get_free_pages(GFP_KERNEL|GFP_DMA, cam->frame[i].CBCR_order);
-		cam->frame[i].CR_virt_base = __get_free_pages(GFP_KERNEL|GFP_DMA, cam->frame[i].CBCR_order);
+		cam->frame[i].Y_virt_base =  (void*)__get_free_pages(GFP_KERNEL|GFP_DMA, cam->frame[i].Y_order);
+		cam->frame[i].CB_virt_base = (void*)__get_free_pages(GFP_KERNEL|GFP_DMA, cam->frame[i].CBCR_order);
+		cam->frame[i].CR_virt_base = (void*)__get_free_pages(GFP_KERNEL|GFP_DMA, cam->frame[i].CBCR_order);
 		
   	if (cam->frame[i].Y_virt_base == 0 || cam->frame[i].CB_virt_base == 0 || cam->frame[i].CR_virt_base == 0 ) {
 						printk(KERN_ERR "s3c2440camif:allocate_frame_buf failed.\n");
@@ -1220,7 +1267,7 @@ static s3c2410camif_fmt formats[] = {
 static int s3c2410camif_enum_fmt_vid_cap(struct file *file, void  *priv, struct v4l2_fmtdesc *f)
 {
 	struct video_device *dev = video_devdata(file);
-	s3c2440camif_dev *pcam = video_get_drvdata(dev);
+	//s3c2440camif_dev *pcam = video_get_drvdata(dev);
 	s3c2410camif_fmt *fmt;
 	
 	if(f->index >= 1) //TODO: add support for other formats
@@ -1333,6 +1380,87 @@ static int s3c2410camif_s_fmt_vid_cap(struct file *file, void *priv,struct v4l2_
 	return ret;
 }
 
+
+static int s3c2410camif_vidioc_queryctrl(struct file *file,
+                void *priv, struct v4l2_queryctrl *c)
+{
+	int i;
+	int nbr;
+	nbr = ARRAY_SIZE(s3c2410camif_controls);
+
+	for (i = 0; i < nbr; i++) {
+		if (s3c2410camif_controls[i].id == c->id) {
+			memcpy(c, &s3c2410camif_controls[i],	sizeof(struct v4l2_queryctrl));
+			return 0;
+		}
+	}
+	
+	return -EINVAL;
+}
+
+static int s3c2410camif_vidioc_enum_input(struct file *file,
+                void *priv, struct v4l2_input *input)
+{
+	if (input->index != 0)
+		return -EINVAL;
+
+	strcpy(input->name, "S3C2410 Camera");
+	input->type = V4L2_INPUT_TYPE_CAMERA;
+	return 0;
+}
+
+static int s3c2410camif_vidioc_g_ctrl(struct file *file,
+                void *priv, struct v4l2_control *c)
+{
+	struct video_device *dev = video_devdata(file);
+	s3c2440camif_dev *pcam = video_get_drvdata(dev);
+
+	switch (c->id) {
+		case V4L2_CID_EXPOSURE:
+			c->value=pcam->sensor_op->get_exposure();
+			return 0;
+		case V4L2_CID_AUTOGAIN:
+			c->value=pcam->sensor_op->get_auto_gain();
+			return 0;
+		case V4L2_CID_GAIN:
+			c->value=pcam->sensor_op->get_gain();
+			return 0;
+		case V4L2_CID_EXPOSURE_AUTO:
+			c->value=pcam->sensor_op->get_auto_exposure();
+			return 0;
+		case V4L2_CID_AUTO_WHITE_BALANCE:
+			c->value=pcam->sensor_op->get_auto_wb();
+			return 0;
+		default:
+			return -EINVAL;
+	}
+	return 0;
+}
+
+static int s3c2410camif_vidioc_s_ctrl(struct file *file,
+                void *priv, struct v4l2_control *c)
+{
+	struct video_device *dev = video_devdata(file);
+	s3c2440camif_dev *pcam = video_get_drvdata(dev);
+	
+	switch (c->id) {
+		case V4L2_CID_AUTOGAIN:
+			return pcam->sensor_op->set_auto_gain(c->value);
+		case V4L2_CID_GAIN:
+			return pcam->sensor_op->set_gain(c->value);
+		case V4L2_CID_EXPOSURE_AUTO:
+			return pcam->sensor_op->set_auto_exposure(c->value);
+		case V4L2_CID_EXPOSURE:
+			return pcam->sensor_op->set_exposure(c->value);
+		case V4L2_CID_AUTO_WHITE_BALANCE:
+			return pcam->sensor_op->set_auto_wb(c->value);
+		default:
+			return -EINVAL;
+	}
+	return 0;
+}
+
+
 static struct v4l2_file_operations s3c2410camif_fops = {
 	.owner = THIS_MODULE,
 	.open = camif_open,
@@ -1348,6 +1476,10 @@ static const struct v4l2_ioctl_ops s3c2410camif_ioctl_ops = {
 	.vidioc_enum_fmt_vid_cap = s3c2410camif_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap    = s3c2410camif_g_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap    = s3c2410camif_s_fmt_vid_cap,
+	.vidioc_g_ctrl           = s3c2410camif_vidioc_g_ctrl,
+	.vidioc_s_ctrl           = s3c2410camif_vidioc_s_ctrl,	
+	.vidioc_enum_input       = s3c2410camif_vidioc_enum_input,
+	.vidioc_queryctrl        = s3c2410camif_vidioc_queryctrl,
 };
 
 static struct video_device s3c2410camif_v4l_template = {
@@ -1634,7 +1766,7 @@ static int __init camif_init(void)
 		cam->wndVsize = cam->sensor.height;
 	}
 	
-	s3c2410_gpio_setpin(S3C2410_GPG4, 1);
+	s3c2410_gpio_setpin(S3C2410_GPG(4), 1);
 	
 	return 0;
 
@@ -1656,7 +1788,7 @@ static void __exit camif_cleanup(void)
 {
 	s3c2440camif_dev *pcam=&camera;
 
-	if(!static_allocate)
+	if(static_allocate)
 		s3c2440camif_deallocate_frame_buf(pcam,S3C2440_FRAME_NUM);
 	
 	video_unregister_device(pcam->video_dev);

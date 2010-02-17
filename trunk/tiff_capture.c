@@ -15,11 +15,12 @@
 #include <unistd.h>
 #include <tiffio.h>
 #include <getopt.h>
+#include <poll.h>
 
 void show_usage(const char *prog)
 {
 	fprintf(stdout,"Usage:%s <output_base>\n"
-	               "Options: [--width w] [--height h> [--count c] [--device <dev>] [--compress] [--verbose]\n",prog);
+	               "Options: [--width w] [--height h> [--count c] [--device <dev>] [--compress] [--verbose] [--exposure <exp>, set to -1 for auto] [--gain <g>, set to -1 for auto --skip <n> capture n dummy frames and don't store them]\n",prog);
 	
 }
 
@@ -65,6 +66,59 @@ int save_tiff_image(const char *file,int width,int height,uint8_t *buf,int compr
 	return err;
 }
 
+void print_control(int dev_fd,int ctl,const char* name)
+{
+	struct v4l2_queryctrl queryctrl;
+	struct v4l2_control control;
+
+	memset (&queryctrl, 0, sizeof (queryctrl));
+	memset (&control,0,sizeof(control));
+	
+	queryctrl.id = ctl;
+
+	if (-1 == ioctl (dev_fd, VIDIOC_QUERYCTRL, &queryctrl)) {
+		if (errno != EINVAL) {
+			perror ("VIDIOC_QUERYCTRL");
+			return;
+		} else {
+			printf ("%s is not supported\n",name);
+			return;
+		}
+	} else if (queryctrl.flags & V4L2_CTRL_FLAG_DISABLED) {
+		printf("%s is disabled\n",name);
+	} else {
+		control.id=ctl;
+		if( !ioctl(dev_fd,VIDIOC_G_CTRL,&control))
+		{
+			printf("%s = min: %d max:%d value:%d\n",name,queryctrl.minimum,queryctrl.maximum,control.value);
+		} else {
+			printf("%s = min: %d max:%d value:unknown\n",name,queryctrl.minimum,queryctrl.maximum);
+		}
+	}
+}
+
+void get_capture_parameters(int dev_fd)
+{
+	print_control(dev_fd,V4L2_CID_EXPOSURE_AUTO,"Auto Exposure");
+	print_control(dev_fd,V4L2_CID_AUTOGAIN,"Auto Gain");
+	print_control(dev_fd,V4L2_CID_AUTO_WHITE_BALANCE,"Auto WB");
+	print_control(dev_fd,V4L2_CID_GAIN,"Gain");
+	print_control(dev_fd,V4L2_CID_EXPOSURE,"Exposure");
+}
+
+void set_control(int dev_fd,int ctrl,int val,const char *name)
+{
+	struct v4l2_control control;
+	memset (&control,0,sizeof(control));	
+	control.id = ctrl;
+	control.value=val;
+	
+	if( ioctl(dev_fd,VIDIOC_S_CTRL,&control))
+	{
+		fprintf(stderr,"Failed to set control %s\n",name);
+	}
+}
+
 int main(int argc,char **argv)
 {
   const char *output_base;
@@ -86,16 +140,26 @@ int main(int argc,char **argv)
 	struct timeval finish;
 	double fps;
 	int verbose=0;
+	int set_exp=0;
+	int set_gain=0;
+	int exposure=0;
+	int gain=0;
+	int skip=0;
+	struct pollfd wait_fd;
+	struct timespec wait_timeout;
 	
   struct option long_options[] = { 
-    {"verbose", no_argument, &verbose, 1},
-    {"quiet",   no_argument, &verbose, 0},
+    {"verbose",  no_argument, &verbose, 1},
+    {"quiet",    no_argument, &verbose, 0},
 		{"compress", no_argument, &compress, 1},
 		{"nocompress", no_argument, &compress, 0},
     {"width",   required_argument, 0, 'w'},
     {"height",  required_argument, 0, 'h'},
     {"device",  required_argument, 0, 'd'},
 		{"count",   required_argument, 0, 'c'},
+		{"exposure",required_argument, 0, 'e'},
+		{"gain",    required_argument, 0, 'g'},
+		{"skip",    required_argument, 0, 's'},
     {0, 0, 0, 0}
   };
     
@@ -105,7 +169,7 @@ int main(int argc,char **argv)
     /* getopt_long stores the option index here. */
     int option_index = 0;
 
-    c = getopt_long (argc, argv, "w:h:d:c:", long_options, &option_index);
+    c = getopt_long (argc, argv, "w:h:d:c:e:g:s:", long_options, &option_index);
 
     /* Detect the end of the options. */
     if (c == -1)
@@ -126,6 +190,17 @@ int main(int argc,char **argv)
 			break;
 		case 'c':
 			fcount=atoi(optarg);
+			break;
+		case 'g':
+			set_gain=1;
+			gain=atoi(optarg);
+			break;
+		case 'e':
+			set_exp=1;
+			exposure=atoi(optarg);
+			break;
+		case 's':
+			skip=atoi(optarg);
 			break;
     case '?':
       /* getopt_long already printed an error message. */
@@ -172,7 +247,7 @@ int main(int argc,char **argv)
 	
 	if (0 != ioctl (dev_fd, VIDIOC_S_FMT, &fmt))
 	{
-		perror ("VIDIOC_G_FMT");
+		perror ("VIDIOC_S_FMT");
 		return 1;
 	}
 	
@@ -181,13 +256,40 @@ int main(int argc,char **argv)
 	memmove(fourcc,&fmt.fmt.pix.pixelformat,4);
 	
 	if(verbose) 
+	{
 		printf("Goint to capture frames %d x %d format: %4s framesize: %d\n",
 				 fmt.fmt.pix.width,
 				 fmt.fmt.pix.height,
 				 fourcc,
 				 fmt.fmt.pix.sizeimage);
-								
+				 
+	}
 	
+	if(set_gain)
+	{
+		if(gain>=0)
+		{
+			set_control(dev_fd,V4L2_CID_AUTOGAIN,0,"Autogain");
+			set_control(dev_fd,V4L2_CID_GAIN,gain,"Gain");
+		} else {
+			set_control(dev_fd,V4L2_CID_AUTOGAIN,1,"Autogain");
+		}
+	}
+	
+	if(set_exp)
+	{
+		if(exposure>=0)
+		{
+			set_control(dev_fd,V4L2_CID_EXPOSURE_AUTO,0,"Auto exposure");
+			set_control(dev_fd,V4L2_CID_EXPOSURE,exposure,"Exposure");
+		} else {
+			set_control(dev_fd,V4L2_CID_EXPOSURE_AUTO,1,"Auto exposure");
+		}
+	}
+
+	if(verbose)
+		get_capture_parameters(dev_fd);
+
   Ysize=buffer_width*buffer_height;
   CbCrsize=buffer_width*buffer_height/2;
   buffer_size=Ysize; //fmt.fmt.pix.sizeimage; //YCbCr422
@@ -216,7 +318,28 @@ int main(int argc,char **argv)
 	fcount=i;
   //printf("Enough memory to capture %d images to %s\n",fcount,output_base);
 
-
+	if(skip && verbose)
+		printf("Skipping %d frames\n",skip);
+	wait_fd.fd=dev_fd;
+	wait_fd.events=POLLIN;
+	wait_fd.revents=0;
+	
+	for(i=0;i<skip;i++) //skipping dummy frames
+	{
+		int rd=0;
+		//poll(&wait_fd,1,100);
+		if((rd=read(dev_fd, buffers[0], buffer_size))<buffer_size)
+    {
+      fprintf(stderr,"Expected %d got %d!\n",buffer_size,rd);
+      continue;
+    }
+		if(verbose) 
+		{	
+			printf("s");
+			fflush(stdout);
+		}
+	}
+	
 	gettimeofday(&start,NULL);
   for(i=0;i<fcount;i++)
   {
@@ -227,8 +350,11 @@ int main(int argc,char **argv)
       fprintf(stderr,"Expected %d got %d!\n",buffer_size,rd);
       continue;
     }
-		if(verbose) printf("*");
-		fflush(stdout);
+		if(verbose) 
+		{	
+			printf("*");
+			fflush(stdout);
+		}
 	}
 	gettimeofday(&finish,NULL);
   close(dev_fd);
