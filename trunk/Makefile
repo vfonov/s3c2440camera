@@ -32,4 +32,6 @@ tiff_capture: tiff_capture.c
 clean:
 	rm -f s3c2440camera.mod.o  s3c2440camera.o  s3c2440camif.o  s3c2440_ov9650.o  sccb.o	s3c2440camera.ko s3c2440camera.mod.c  test_capture tiff_capture 
 
+tar:
+	tar czf s3c2440camera.tar.gz *.c *.h Makefile 
 endif
