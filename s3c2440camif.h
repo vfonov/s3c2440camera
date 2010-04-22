@@ -28,9 +28,14 @@ enum
 
 typedef struct  {
 	volatile int state;
-	void * Y_virt_base, *CB_virt_base,*CR_virt_base;
-	u32 Y_order,CBCR_order;
-
+	void *Y_virt_base;
+	void *CB_virt_base;
+	void *CR_virt_base;
+	
+	u32     Y_order;
+	ssize_t img_size;
+  unsigned long offset;
+  //struct device *dev;
 	//struct v4l2_buffer buffer;
 	//struct list_head queue;
 	int index;
@@ -43,9 +48,7 @@ typedef struct
 	int   depth;
 } s3c2410camif_fmt;
 
-
 #define S3C2440_FRAME_NUM 4
-
 
 /* for s3c2440camif_dev->state field. */
 enum
@@ -168,14 +171,12 @@ typedef struct
   
   /* last captured frame */
   volatile int last_frame;
+	volatile int last_frame_captured;
 
 	/* for executing camif commands. */
 	int cmdcode;				// command code, CAMIF_CMD_START, CAMIF_CMD_CFG, etc.
 	wait_queue_head_t cmdqueue;	// wait queue for waiting untile command completed (if in preview or in capturing).
-	wait_queue_head_t cap_queue; //wait queue for waiting captured frame
-	
-	
-	
+	//wait_queue_head_t cap_queue; //wait queue for waiting captured frame
 } s3c2440camif_dev;
 
 #define S3C244X_CAMIFREG(x) ((x) + camif_base_addr)

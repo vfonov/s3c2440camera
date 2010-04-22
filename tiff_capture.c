@@ -1,5 +1,6 @@
 #include <asm/types.h>          /* for videodev2.h */
 #include <linux/videodev2.h>
+#include <sys/mman.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,14 +18,42 @@
 #include <getopt.h>
 #include <poll.h>
 
+typedef struct {
+  void *start;
+  size_t length;
+} VideoBuffer;
+
+
 void show_usage(const char *prog)
 {
 	fprintf(stdout,"Usage:%s <output_base>\n"
-	               "Options: [--width w] [--height h> [--count c] [--device <dev>] [--compress] [--verbose] [--exposure <exp>, set to -1 for auto] [--gain <g>, set to -1 for auto --skip <n> capture n dummy frames and don't store them]\n",prog);
+	               "Options: \n"
+								 "\t[--width w] [--height h> [--count c] [--device <dev>] [--compress]\n"
+								 "\t[--verbose] [--exposure <exp>, set to -1 for auto]\n"
+								 "\t[--gain <g>, set to -1 for auto --skip <n> capture n dummy frames and don't store them]\n"
+								 "\t[--stream]\n"
+								 ,prog);
 	
 }
 
-int save_tiff_image(const char *file,int width,int height,uint8_t *buf,int compress)
+#define CLEAR(x) memset (&(x), 0, sizeof (x))
+
+int xioctl(int fd, int request, void* arg)
+{
+  int r;
+
+  do r = ioctl (fd, request, arg);
+  while (-1 == r && EINTR == errno);
+  if(-1 == r)
+		fprintf(stderr,"ioctl:%s\n",strerror(errno));
+  return r;
+}
+
+
+
+int save_tiff_image(const char *file,
+										int width,int height,
+										uint8_t *buf,int compress)
 {
 	int err=0;
 	TIFF* tif = TIFFOpen(file, "w");
@@ -119,6 +148,132 @@ void set_control(int dev_fd,int ctrl,int val,const char *name)
 	}
 }
 
+int capture_read(int dev_fd,unsigned char *buf,size_t buffer_size)
+{
+	size_t rd;
+  if((rd=read(dev_fd, buf, buffer_size))<buffer_size)
+	{
+      fprintf(stderr,"Expected %d got %d!\n",buffer_size,rd);
+			return -1;
+	}
+	return 0;
+}
+
+int streamon(int dev_fd)
+{
+  int type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  if(-1 == xioctl(dev_fd, VIDIOC_STREAMON, &type))  {
+		fprintf(stderr,"V4L2 : Stream on fail !!!\n");
+    // Error handler
+		return -1;
+  }
+	return 0;
+}
+
+int streamoff(int dev_fd)
+{
+  int type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  if(-1 == xioctl(dev_fd, VIDIOC_STREAMOFF, &type))  {
+		fprintf(stderr,"V4L2 : Stream off fail !!!\n");
+    // Error handler
+		return -1;
+  }
+	return 0;
+}
+
+int init_stream(int dev_fd)
+{
+  struct v4l2_requestbuffers req;
+  CLEAR (req);
+
+  req.count               = 4;
+  req.type                = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  req.memory              = V4L2_MEMORY_MMAP;
+
+  if(-1 == xioctl (dev_fd, VIDIOC_REQBUFS, &req)) {
+    fprintf(stderr,"V4L2 : Request buffer error\n");
+    // Error handler
+		return -1;
+  }
+	return 0;
+}
+
+int init_buffers(int dev_fd,int buf_cnt,VideoBuffer *buffers)
+{
+	int i;
+  struct v4l2_buffer buf;
+	
+  for(i=0;i<buf_cnt;++i) 
+	{
+    CLEAR (buf);
+
+    buf.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    buf.memory = V4L2_MEMORY_MMAP;
+    buf.index  = i;
+
+    if(-1 == xioctl(dev_fd, VIDIOC_QUERYBUF, &buf)) {
+      fprintf(stderr,"V4L2 : Query buffer error\n");
+			return -1;
+    }
+    printf("<%d> buffer length: %d\n", i, buf.length);
+    printf("<%d> buffer offset: %d\n", i, buf.m.offset);
+
+    buffers[i].length = buf.length;
+    buffers[i].start = mmap(NULL,
+                  buf.length,
+                  PROT_READ|PROT_WRITE,
+                  MAP_SHARED,
+                  dev_fd,
+                  buf.m.offset);
+									
+    if(MAP_FAILED == buffers[i].start)  {
+      fprintf(stderr,"V4L2 : Mmap buffer fail !!!\n");
+			return -1;
+    }
+		fflush(stdout);
+  }
+
+  for(i=0;i<buf_cnt;++i) 
+	{
+		
+    CLEAR (buf);
+    buf.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    buf.memory = V4L2_MEMORY_MMAP;
+    buf.index  = i;
+
+    if(-1 == xioctl (dev_fd, VIDIOC_QBUF, &buf))  
+		{
+      fprintf(stderr,"V4L2 : Queue buffer fail !!!\n");
+			return -1;
+    }
+  }
+	return 0;
+}
+
+int capture_stream(int dev_fd,unsigned char *frame,size_t buffer_size,VideoBuffer *buffers)
+{
+  struct v4l2_buffer buf;
+  CLEAR (buf);
+	
+  buf.type   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  buf.memory = V4L2_MEMORY_MMAP;
+	
+  if(-1 == xioctl (dev_fd, VIDIOC_DQBUF, &buf))
+  {
+		fprintf(stderr,"V4L2 : VIDIOC_DQBUF fail !!!\n");
+    return -1;
+  }
+	memmove(frame,buffers[buf.index].start,buffer_size);
+	
+  if(-1 == xioctl (dev_fd, VIDIOC_QBUF, &buf))
+  {
+		fprintf(stderr,"V4L2 : VIDIOC_QBUF fail !!!\n");
+    return -1;
+  }
+	
+	return 0;
+}
+
 int main(int argc,char **argv)
 {
   const char *output_base;
@@ -131,6 +286,8 @@ int main(int argc,char **argv)
   int buffer_height=1024;
   int buffer_size;
   int Ysize,CbCrsize;
+	int stream=0;
+	
 	struct v4l2_capability cap;
 	struct v4l2_format fmt;
 	char fourcc[5]={0,0,0,0,0};
@@ -147,11 +304,12 @@ int main(int argc,char **argv)
 	int skip=0;
 	struct pollfd wait_fd;
 	struct timespec wait_timeout;
+	VideoBuffer vbuffers[4];
 	
   struct option long_options[] = { 
-    {"verbose",  no_argument, &verbose, 1},
-    {"quiet",    no_argument, &verbose, 0},
-		{"compress", no_argument, &compress, 1},
+    {"verbose",    no_argument, &verbose,  1},
+    {"quiet",      no_argument, &verbose,  0},
+		{"compress",   no_argument, &compress, 1},
 		{"nocompress", no_argument, &compress, 0},
     {"width",   required_argument, 0, 'w'},
     {"height",  required_argument, 0, 'h'},
@@ -160,6 +318,8 @@ int main(int argc,char **argv)
 		{"exposure",required_argument, 0, 'e'},
 		{"gain",    required_argument, 0, 'g'},
 		{"skip",    required_argument, 0, 's'},
+		{"stream",    no_argument, &stream, 1},
+		{"read",    	no_argument, &stream, 0},
     {0, 0, 0, 0}
   };
     
@@ -169,7 +329,7 @@ int main(int argc,char **argv)
     /* getopt_long stores the option index here. */
     int option_index = 0;
 
-    c = getopt_long (argc, argv, "w:h:d:c:e:g:s:", long_options, &option_index);
+    c = getopt_long(argc, argv, "w:h:d:c:e:g:s:", long_options, &option_index);
 
     /* Detect the end of the options. */
     if (c == -1)
@@ -262,7 +422,6 @@ int main(int argc,char **argv)
 				 fmt.fmt.pix.height,
 				 fourcc,
 				 fmt.fmt.pix.sizeimage);
-				 
 	}
 	
 	if(set_gain)
@@ -293,7 +452,6 @@ int main(int argc,char **argv)
   Ysize=buffer_width*buffer_height;
   CbCrsize=buffer_width*buffer_height/2;
   buffer_size=Ysize; //fmt.fmt.pix.sizeimage; //YCbCr422
-  
 	buffers=malloc(sizeof(unsigned char *)*fcount);
 	
 	if(!buffers)
@@ -301,7 +459,7 @@ int main(int argc,char **argv)
 		perror("Can't allocate buffer!\n");
 		return 1;
 	}
-	
+
 	//try to allocate memory for all buffers
 	for(i=0;i<fcount;i++)
 	{
@@ -320,19 +478,46 @@ int main(int argc,char **argv)
 
 	if(skip && verbose)
 		printf("Skipping %d frames\n",skip);
+
 	wait_fd.fd=dev_fd;
 	wait_fd.events=POLLIN;
 	wait_fd.revents=0;
+
+	if(stream)
+	{
+		if(init_stream(dev_fd))
+			return 1;
+		
+		if(init_buffers(dev_fd,4,vbuffers))
+			return 1;
+		
+		printf("Init buffers!\n");
+		fflush(stdout);
+		fflush(stderr);
+		sleep(1);
+		
+		if(streamon(dev_fd))
+			return 1;
+		
+		printf("Init done!\n");
+		fflush(stdout);
+		fflush(stderr);
+		sleep(1);
+	}
 	
 	for(i=0;i<skip;i++) //skipping dummy frames
 	{
 		int rd=0;
 		//poll(&wait_fd,1,100);
-		if((rd=read(dev_fd, buffers[0], buffer_size))<buffer_size)
-    {
-      fprintf(stderr,"Expected %d got %d!\n",buffer_size,rd);
-      continue;
-    }
+		if(stream)
+		{
+			if(capture_stream(dev_fd, buffers[0], buffer_size,vbuffers))
+				continue;
+		} else {
+			if(capture_read(dev_fd, buffers[0], buffer_size))
+				continue;
+		}
+		
 		if(verbose) 
 		{	
 			printf("s");
@@ -345,11 +530,17 @@ int main(int argc,char **argv)
   {
     int rd=0;
     
-    if((rd=read(dev_fd, buffers[i], buffer_size))<buffer_size)
-    {
-      fprintf(stderr,"Expected %d got %d!\n",buffer_size,rd);
-      continue;
-    }
+		//if(capture_read(dev_fd, buffers[i], buffer_size))
+    //  continue;
+		if(stream)
+		{
+			if(capture_stream(dev_fd, buffers[i], buffer_size,vbuffers))
+				continue;
+  	} else {
+			if(capture_read(dev_fd, buffers[i], buffer_size))
+				continue;
+		}
+		
 		if(verbose) 
 		{	
 			printf("*");
@@ -357,12 +548,16 @@ int main(int argc,char **argv)
 		}
 	}
 	gettimeofday(&finish,NULL);
+	if(stream)
+		streamoff(dev_fd);
+	
   close(dev_fd);
 	fps=(double)(fcount)/((finish.tv_sec-start.tv_sec)+(finish.tv_usec-start.tv_usec)/1e6);
-	
+
+
 	if(verbose) 
 		printf("\n%f fps, Saving collectected frames...\n",fps);
-	
+
 	for(i=0;i<fcount;i++)
 	{
     FILE *img=NULL;

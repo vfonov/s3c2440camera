@@ -180,11 +180,11 @@ static int s3c2440camif_deallocate_frame_buf(s3c2440camif_dev * cam, int count)
 		if(cam->frame[i].Y_virt_base)
 			free_pages((unsigned int)cam->frame[i].Y_virt_base, cam->frame[i].Y_order);
 		
-		if(cam->frame[i].CB_virt_base)
+		/*if(cam->frame[i].CB_virt_base)
 			free_pages((unsigned int)cam->frame[i].CB_virt_base, cam->frame[i].CBCR_order);
 		
 		if(cam->frame[i].CR_virt_base)
-			free_pages((unsigned int)cam->frame[i].CR_virt_base, cam->frame[i].CBCR_order);
+			free_pages((unsigned int)cam->frame[i].CR_virt_base, cam->frame[i].CBCR_order);*/
 		
 			//dma_free_coherent(0,PAGE_ALIGN(cam->v2f.fmt.pix.sizeimage),cam->frame[i].virt_base,cam->frame[i].phy_base);
 		cam->frame[i].Y_virt_base=NULL;
@@ -207,25 +207,31 @@ static int s3c2440camif_deallocate_frame_buf(s3c2440camif_dev * cam, int count)
 static int s3c2440camif_allocate_frame_buf(s3c2440camif_dev * cam, int count)
 {
 	int i;
-	
+
+	ssize_t img_size= cam->Ysize+cam->CbCrsize*2;
+	u32     order= get_order(img_size);
   //printk(KERN_ALERT"s3c2440camif: Allocating %d buffers, %d for Y , 2x%d for Cb and Cr\n",count,cam->Ysize,cam->CbCrsize);
 	
 	for (i = 0; i < count; i++) {
 		if(cam->frame[i].Y_virt_base || cam->frame[i].CB_virt_base || cam->frame[i].CR_virt_base)
 			printk(KERN_ERR "s3c2440camif:allocate_frame_buf called without freeing old buffers!.\n");
 		
-		cam->frame[i].Y_order = get_order(cam->Ysize);
-		cam->frame[i].CBCR_order = get_order(cam->CbCrsize);
+		cam->frame[i].img_size=img_size;
+		cam->frame[i].Y_order = order;
 		
-		cam->frame[i].Y_virt_base =  (void*)__get_free_pages(GFP_KERNEL|GFP_DMA, cam->frame[i].Y_order);
-		cam->frame[i].CB_virt_base = (void*)__get_free_pages(GFP_KERNEL|GFP_DMA, cam->frame[i].CBCR_order);
-		cam->frame[i].CR_virt_base = (void*)__get_free_pages(GFP_KERNEL|GFP_DMA, cam->frame[i].CBCR_order);
+		cam->frame[i].offset = (PAGE_SIZE << order ) * i;
+		//cam->frame[i].CBCR_order = get_order(cam->CbCrsize);
 		
-  	if (cam->frame[i].Y_virt_base == 0 || cam->frame[i].CB_virt_base == 0 || cam->frame[i].CR_virt_base == 0 ) {
+		cam->frame[i].Y_virt_base  = (void*)__get_free_pages(GFP_KERNEL|GFP_DMA, cam->frame[i].Y_order);
+		cam->frame[i].CB_virt_base = cam->frame[i].Y_virt_base+cam->Ysize;//   (void*)__get_free_pages(GFP_KERNEL|GFP_DMA, cam->frame[i].CBCR_order);
+		cam->frame[i].CR_virt_base = cam->frame[i].Y_virt_base+cam->Ysize+cam->CbCrsize;//(void*)__get_free_pages(GFP_KERNEL|GFP_DMA, cam->frame[i].CBCR_order);
+		
+  	if (cam->frame[i].Y_virt_base == 0 ) {
 						printk(KERN_ERR "s3c2440camif:allocate_frame_buf failed.\n");
 						s3c2440camif_deallocate_frame_buf(cam,count);
 						return -ENOBUFS;
 		}
+		
 		//cam->frame[i].phy_base = virt_to_bus( cam->frame[i].virt_base );
 		
 		/*cam->frame[i].buffer.index = i;
@@ -697,7 +703,7 @@ static void __inline__ update_camif_regs(s3c2440camif_dev * pdev)
  */
 static int start_capture(s3c2440camif_dev * pdev, int stream)
 {
-	int ret;
+	int ret=0;
 
 	u32 ciwdofst;
 	u32 ciprscctrl;
@@ -737,14 +743,13 @@ static int start_capture(s3c2440camif_dev * pdev, int stream)
   #endif
   
   pdev->state = CAMIF_STATE_CODECING;
-  
-  
+
 	ret = 0;
 	if (stream == 0)
 	{
 		pdev->cmdcode = CAMIF_CMD_STOP;
 		ret = wait_event_interruptible(pdev->cmdqueue, pdev->cmdcode == CAMIF_CMD_NONE);
-		
+		printk("Stopped streaming\n");
 	} else {
     pdev->cmdcode = CAMIF_CMD_NONE;
   }
@@ -945,7 +950,7 @@ static irqreturn_t on_camif_irq_c(int irq, void * dev)
 	
   //printk(KERN_ALERT"%d %d %d %d\n",img_buff[0].state,img_buff[1].state,img_buff[2].state,img_buff[3].state);
 
-  pdev->last_frame=frame;
+  pdev->last_frame_captured=frame;
   //printk(KERN_ALERT"on_camif_irq_c %d %d %d %d\n",frame,oflow_y,oflow_cb,oflow_cr);
 
 	if (pdev->cmdcode & CAMIF_CMD_STOP)
@@ -1013,7 +1018,7 @@ static irqreturn_t on_camif_irq_p(int irq, void * dev)
   
   //printk(KERN_ALERT"on_camif_irq_p %d\n",frame);
   
-  pdev->last_frame=frame;
+  pdev->last_frame_captured=frame;
 
   pdev->frame[frame].state = CAMIF_BUFF_RGB565;
 
@@ -1075,6 +1080,7 @@ static int camif_open(struct file *file)
 	
   
   pcam->last_frame=-1;
+	pcam->last_frame_captured=-1;
   
   if((ret=request_irq(IRQ_S3C2440_CAM_C, on_camif_irq_c, IRQF_DISABLED, "CAM_C", pcam))<0)	// setup ISRs
     goto error2;
@@ -1092,8 +1098,8 @@ static int camif_open(struct file *file)
 	
 
   //start streaming
-  if (start_capture(pcam, 1) != 0)
-    goto error3;
+  //if (start_capture(pcam, 1) != 0)
+  //  goto error3;
   
 	return 0;
 
@@ -1112,23 +1118,45 @@ static ssize_t camif_read(struct file *file, char __user *data, size_t count, lo
 {
 	struct video_device *vdev=file->private_data;
 	s3c2440camif_dev *pcam = (s3c2440camif_dev *)video_get_drvdata(vdev);
+	
 	int ret=0;
   int last_frame;
+	int last_frame_captured;
+	int i=0;
 	size_t _count;
+	
+	if( pcam->state != CAMIF_STATE_CODECING || pcam->state != CAMIF_STATE_PREVIEWING)
+	{
+		if(start_capture(pcam, 1) != 0)
+			return -EBUSY;
+	}
 
 	//disable_irq(IRQ_S3C2440_CAM_C);
 	//disable_irq(IRQ_S3C2440_CAM_P);
  
-  last_frame= pcam->last_frame;//atomic operation?
+  last_frame= pcam->last_frame;
+	last_frame_captured=pcam->last_frame_captured;
  //try to find a valid frame
   //if( last_frame != -1)
-   
 	//printk(KERN_ALERT"read: %d %d %d %d\n",pcam->frame[0].state,pcam->frame[1].state,pcam->frame[2].state,pcam->frame[3].state);
-	if((last_frame==-1) || (pcam->frame[last_frame].state == CAMIF_BUFF_INVALID))
+	
+	if(last_frame<0) last_frame=0;
+	
+	for(i=0;i<4;i++)
+		if(pcam->frame[(i+last_frame)%4].state != CAMIF_BUFF_INVALID) break;
+		
+	if(i==4)
 	{
-		//let's sleep ?
-		wait_event_interruptible(pcam->cmdqueue, (last_frame!=pcam->last_frame));
-		last_frame=pcam->last_frame;
+		wait_event_interruptible(pcam->cmdqueue, (last_frame_captured!=pcam->last_frame_captured));
+		last_frame=pcam->last_frame_captured;
+	} else {
+		last_frame=(last_frame+i)%4;
+	}
+	
+	if(pcam->frame[last_frame].state==CAMIF_BUFF_INVALID) //something went wrong, we didn't capture the frame
+	{
+		printk("Failed to capture a frame 2!\n");
+		return -EBUSY;
 	}
 	
 	if(count> pcam->v2f.fmt.pix.sizeimage)
@@ -1155,6 +1183,8 @@ static ssize_t camif_read(struct file *file, char __user *data, size_t count, lo
 	}
 	
 	pcam->frame[last_frame].state=CAMIF_BUFF_INVALID; //mark as invalid
+	
+	pcam->last_frame=(last_frame+1)%4;//move on
 	
 	//printk(KERN_ALERT"+\n");
 	return ret;
@@ -1193,7 +1223,6 @@ static int camif_release(struct file *file)
 }
 
 
-
 /*!
  * V4L interface - poll function
  *
@@ -1207,20 +1236,16 @@ static unsigned int camif_poll(struct file *file, poll_table * wait)
 {
 	struct video_device *dev = video_devdata(file);
 	s3c2440camif_dev *pcam = video_get_drvdata(dev);
-	unsigned int ret = 0;
-	wait_queue_head_t *queue = NULL;
-	
 	/*
 	int res = POLLIN | POLLRDNORM;
 	if (down_interruptible(&pcam->busy_lock))
 		return -EINTR;*/
-	if (pcam->last_frame>-1 && pcam->frame[pcam->last_frame].state!=CAMIF_BUFF_INVALID) ret = POLLIN | POLLRDNORM;
-
-	queue = &pcam->cmdqueue;
-	poll_wait(file, queue, wait);
-
-	//up(&cam->busy_lock);
-	return ret;
+	//local_irq_save(flags);
+	
+	if(pcam->last_frame_captured==-1 || pcam->frame[pcam->last_frame_captured].state==CAMIF_BUFF_INVALID)
+		poll_wait(file, &pcam->cmdqueue, wait);
+	
+	return pcam->last_frame_captured!=-1 && pcam->frame[pcam->last_frame_captured].state!=CAMIF_BUFF_INVALID?(POLLIN | POLLRDNORM) : 0;
 }
 
 static int s3c2410camif_querycap(struct file *file, void  *priv, struct v4l2_capability *cap)
@@ -1228,13 +1253,13 @@ static int s3c2410camif_querycap(struct file *file, void  *priv, struct v4l2_cap
 	struct video_device *dev = video_devdata(file);
 	s3c2440camif_dev *pcam = video_get_drvdata(dev);
 
-
 	//WARN_ON(priv != file->private_data);
 
-	strcpy(cap->driver,"s3c2440camera" );
-	strcpy(cap->card, "s3c2410camif");
-	cap->version =  KERNEL_VERSION(0,0,1);
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE|V4L2_CAP_READWRITE; //TODO: move to mmap someday
+	strcpy(cap->driver,"s3c2440camera");
+	strcpy(cap->card,  "s3c2410camif");
+	
+	cap->version =      KERNEL_VERSION(0,0,1);
+	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE|V4L2_CAP_READWRITE|V4L2_CAP_STREAMING; 
 	return 0;
 }
 
@@ -1262,6 +1287,39 @@ static s3c2410camif_fmt formats[] = {
 		.depth    = 24,
 	}
 };
+
+static int camif_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct video_device *dev = video_devdata(file);
+	s3c2440camif_dev *pcam   = video_get_drvdata(dev);
+  int i;
+
+  //struct s3c2440camif_dev *pdev = video_drvdata(file);
+
+  for(i=0;i<4;++i) {  
+    if((pcam->frame[i].offset >> PAGE_SHIFT) == vma->vm_pgoff)
+      break;
+  }
+
+  if(i == 4)  {
+    //printk("Error mmap offset!\n");
+    return -EFAULT;
+  }
+
+  vma->vm_flags |= VM_SHARED | VM_RESERVED;
+
+  //printk("MMAP <%d> : 0x%08lx\n", i, __pa(pcam->frame[i].Y_virt_base));
+
+  if(remap_pfn_range(vma, vma->vm_start, 
+		                 __pa(pcam->frame[i].Y_virt_base) >> PAGE_SHIFT, 
+										      pcam->frame[i].img_size, PAGE_SHARED)) 
+	{
+    printk("S3C2440 V4L2 : mmap fail...\n");
+    return -EAGAIN;
+  }
+
+  return 0;
+}
 
 
 static int s3c2410camif_enum_fmt_vid_cap(struct file *file, void  *priv, struct v4l2_fmtdesc *f)
@@ -1293,6 +1351,7 @@ static int s3c2410camif_set_format(s3c2440camif_dev *pcam,u32 format,u32 width,u
 {
 	int ret=0;
 	u32 scH,scV;
+	int i;
   int last_state=pcam->state;
 	
 	if(pcam->state == CAMIF_STATE_PREVIEWING || pcam->state == CAMIF_STATE_CODECING)
@@ -1317,7 +1376,7 @@ static int s3c2410camif_set_format(s3c2440camif_dev *pcam,u32 format,u32 width,u
 	pcam->wndHsize = pcam->sensor.width;
 	pcam->wndVsize = pcam->sensor.height;
 	
-	if(width >pcam->sensor.width) width=pcam->sensor.width;
+	if(width >pcam->sensor.width)  width=pcam->sensor.width;
 	if(height>pcam->sensor.height) height=pcam->sensor.height;
 	
 	//round up to an integer scaling factor
@@ -1329,15 +1388,12 @@ static int s3c2410camif_set_format(s3c2440camif_dev *pcam,u32 format,u32 width,u
 	
 	//TODO: add support for other formats
 	pcam->v2f.fmt.pix.pixelformat=V4L2_PIX_FMT_YUV422P;
-	
 	pcam->v2f.type=V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	
 	pcam->v2f.fmt.pix.width=width;
 	pcam->v2f.fmt.pix.height=height;
 	pcam->v2f.fmt.pix.bytesperline=width;
 	pcam->v2f.fmt.pix.field=V4L2_FIELD_NONE;
 	pcam->v2f.fmt.pix.bytesperline=width;
-	
 	pcam->v2f.fmt.pix.sizeimage=width*height*2; 
 	
   //setup for YCrCb422p mode
@@ -1350,14 +1406,17 @@ static int s3c2410camif_set_format(s3c2440camif_dev *pcam,u32 format,u32 width,u
 		if((ret=s3c2440camif_allocate_frame_buf(pcam,S3C2440_FRAME_NUM))<0) 
 			return ret;
 	}
-	
+
 	//update_camif_config(pcam,0);
-	
 	init_camif_config(pcam);
 	enable_irq(IRQ_S3C2440_CAM_C);
 	enable_irq(IRQ_S3C2440_CAM_P);
 	
 	pcam->last_frame=-1;//wait for fresh frame
+	pcam->last_frame_captured=-1;
+	
+	for(i=0;i<4;i++)
+		pcam->frame[i].state=CAMIF_BUFF_INVALID;
 	
 	if(last_state==CAMIF_STATE_CODECING || last_state== CAMIF_STATE_PREVIEWING)
 		return start_capture(pcam,1);	
@@ -1460,6 +1519,129 @@ static int s3c2410camif_vidioc_s_ctrl(struct file *file,
 	return 0;
 }
 
+static int s3c2410camif_vidioc_reqbufs(struct file *file, void *fh, struct v4l2_requestbuffers *b)
+{
+	struct video_device *dev = video_devdata(file);
+	s3c2440camif_dev *pcam = video_get_drvdata(dev);
+	
+	if (b->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+			b->memory != V4L2_MEMORY_MMAP)
+		return -EINVAL;
+
+	b->count = 4;	
+	
+	return 0;
+}
+
+static int s3c2410camif_vidioc_querybuf(struct file *file, void *fh, struct v4l2_buffer *b)
+{
+	struct video_device *dev = video_devdata(file);
+	s3c2440camif_dev *pcam = video_get_drvdata(dev);
+	
+	if (b->type != V4L2_BUF_TYPE_VIDEO_CAPTURE || b->index >= 4)
+		return -EINVAL;
+
+	b->length =   pcam->frame[b->index].img_size;
+	b->m.offset = pcam->frame[b->index].offset;
+		
+	return 0;
+}
+
+static int s3c2410camif_vidioc_qbuf(struct file *file, void *fh, struct v4l2_buffer *b)
+{
+	struct video_device *dev = video_devdata(file);
+	s3c2440camif_dev *pcam = video_get_drvdata(dev);
+	
+	//TODO: return frame into the queue
+	
+	return 0;
+}
+
+static int s3c2410camif_vidioc_dqbuf(struct file *file, void *fh, struct v4l2_buffer *b)
+{
+	int last_frame;
+	int last_frame_captured;
+	int i;
+	struct video_device *dev = video_devdata(file);
+	s3c2440camif_dev *pcam = video_get_drvdata(dev);
+	
+	if(pcam->state != CAMIF_STATE_PREVIEWING && 
+		 pcam->state != CAMIF_STATE_CODECING)
+	{
+		printk("Error: trying to dqbuf when streaming is off\n");
+		return -EFAULT;
+	}
+	
+	//wait_event(dev->wait, (pcam->cmdcode==CAMIF_CMD_NONE));  // wait until the ISR completes command.
+  last_frame= pcam->last_frame;//atomic operation?
+	last_frame_captured= pcam->last_frame_captured;
+ //try to find a valid frame
+  //if( last_frame != -1)
+   
+	//printk(KERN_ALERT"read: %d %d %d %d\n",pcam->frame[0].state,pcam->frame[1].state,pcam->frame[2].state,pcam->frame[3].state);
+	if((last_frame==-1) || (pcam->frame[last_frame].state == CAMIF_BUFF_INVALID))
+	{
+		if(last_frame_captured!=-1 && pcam->frame[last_frame_captured].state != CAMIF_BUFF_INVALID)
+			last_frame=last_frame_captured;
+		else
+		{
+			//let's sleep ?
+			wait_event_interruptible(pcam->cmdqueue, (last_frame_captured!=pcam->last_frame_captured));
+			last_frame=pcam->last_frame_captured;
+		}
+	}
+	
+	b->index = last_frame;
+	if(b->index<0 || pcam->frame[b->index].state == CAMIF_BUFF_INVALID)
+	{
+		//printk("Can't capture buffer\n");
+		return -EBUSY;
+	}
+	b->bytesused = pcam->frame[b->index].img_size;
+	b->flags =     V4L2_BUF_FLAG_MAPPED;
+	b->memory =    V4L2_MEMORY_MMAP;
+	
+	pcam->frame[b->index].state = CAMIF_BUFF_INVALID; //indicate that frame have been passed to user app (?)
+	pcam->last_frame=(last_frame+1)%4;
+	
+	return 0;
+}
+
+static int s3c2410camif_vidioc_streamon(struct file *file, void *fh, enum v4l2_buf_type i)
+{
+	struct video_device *dev = video_devdata(file);
+	s3c2440camif_dev *pcam = video_get_drvdata(dev);
+	
+  if(pcam->state == CAMIF_STATE_PREVIEWING || 
+		 pcam->state == CAMIF_STATE_CODECING)
+		return 0; //already started
+	
+	printk("Streamon\n");
+	
+	if(start_capture(pcam, 1)!=0)
+	{
+		printk("Can't start streaming!\n");
+		return -EFAULT;
+	}
+	printk("Started streaming\n");
+	return 0;
+}
+
+static int s3c2410camif_vidioc_streamoff(struct file *file, void *fh, enum v4l2_buf_type i)
+{
+	struct video_device *dev = video_devdata(file);
+	s3c2440camif_dev *pcam   = video_get_drvdata(dev);
+	
+	if(  pcam->state == CAMIF_STATE_PREVIEWING 
+		|| pcam->state == CAMIF_STATE_CODECING )
+	{
+		pcam->cmdcode = CAMIF_CMD_STOP;
+		//return wait_event_interruptible(pcam->cmdqueue, pcam->cmdcode == CAMIF_CMD_NONE);
+		printk("Stopping streaming\n");
+		return wait_event_interruptible(pcam->cmdqueue, pcam->cmdcode == CAMIF_CMD_NONE);
+	}	
+	return -EINVAL;
+}
 
 static struct v4l2_file_operations s3c2410camif_fops = {
 	.owner = THIS_MODULE,
@@ -1467,7 +1649,7 @@ static struct v4l2_file_operations s3c2410camif_fops = {
 	.release = camif_release,
 	.read = camif_read,
 	.ioctl = video_ioctl2,
-	.mmap = NULL,//TODO: implement this camif_mmap
+	.mmap = camif_mmap,
 	.poll = camif_poll,
 };
 
@@ -1480,13 +1662,23 @@ static const struct v4l2_ioctl_ops s3c2410camif_ioctl_ops = {
 	.vidioc_s_ctrl           = s3c2410camif_vidioc_s_ctrl,	
 	.vidioc_enum_input       = s3c2410camif_vidioc_enum_input,
 	.vidioc_queryctrl        = s3c2410camif_vidioc_queryctrl,
+	
+	//Buffer handlers
+	.vidioc_reqbufs          = s3c2410camif_vidioc_reqbufs,
+	.vidioc_querybuf         = s3c2410camif_vidioc_querybuf,
+	.vidioc_qbuf             = s3c2410camif_vidioc_qbuf,
+	.vidioc_dqbuf            = s3c2410camif_vidioc_dqbuf,
+	
+	//Stream on/off
+	.vidioc_streamon         = s3c2410camif_vidioc_streamon,
+	.vidioc_streamoff        = s3c2410camif_vidioc_streamoff,
 };
 
 static struct video_device s3c2410camif_v4l_template = {
-        .name = "s3c2410camif Camera",
-        .fops = &s3c2410camif_fops,
-				.ioctl_ops = & s3c2410camif_ioctl_ops,
-        .release = video_device_release,
+	.name = "s3c2410camif Camera",
+	.fops = &s3c2410camif_fops,
+	.ioctl_ops = & s3c2410camif_ioctl_ops,
+	.release = video_device_release,
 };
 
 static void camera_platform_release(struct device *device)
@@ -1494,11 +1686,11 @@ static void camera_platform_release(struct device *device)
 }
 
 static struct platform_device s3c2410camif_v4l2_devices = {
-        .name = "s3c2410camif_v4l2",
-        .dev = {
-                .release = camera_platform_release,
-                },
-        .id = 0,
+	.name = "s3c2410camif_v4l2",
+	.dev = {
+					.release = camera_platform_release,
+					},
+	.id = 0,
 };
 
 
@@ -1546,6 +1738,7 @@ static int init_s3c2410camif_struct(s3c2440camif_dev * cam)
 	//init_waitqueue_head(&cam->cap_queue);
   
   cam->last_frame=-1;
+	cam->last_frame_captured=-1;
 	
 	//cam->streamparm.parm.capture.capturemode = 0;
 	
@@ -1807,8 +2000,6 @@ static void __exit camif_cleanup(void)
 	printk(KERN_ALERT"s3c2440camif: module removed\n");
 }
 
-
-//module_param(video_nr, int, -1);
 
 module_init(camif_init);
 module_exit(camif_cleanup);
