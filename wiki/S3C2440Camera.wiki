@@ -1,0 +1,11 @@
+= Introduction =
+
+The FriendlyARM Mini2440 is a single board computer based on a Samsung S3C2440 ARM9
+
+= Details =
+
+    * Samsung S3C2440A (ARM920T), 400MHz, max. 533Mhz
+    * 64 MB of SDRAM, 32bit Bus, 100MHz Clock
+    * 64MByte or 128MByte Nand Flash
+    * Debug Port: COM0 + JTAG + USB Slave
+    * 10/100M MB Ethernet, RJ-45 interfaces 
