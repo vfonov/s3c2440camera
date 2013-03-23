@@ -2,7 +2,7 @@
 
 The FriendlyARM Mini2440 is a single board computer based on a Samsung S3C2440 ARM9
 
-[[File:mini2440-35.jpg]]
+[[Image:mini2440-35.jpg]]
 
 = Details =
 
