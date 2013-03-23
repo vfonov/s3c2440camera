@@ -2,6 +2,8 @@
 
 The FriendlyARM Mini2440 is a single board computer based on a Samsung S3C2440 ARM9
 
+[[File:mini2440-35.jpg]]
+
 = Details =
 
     * Samsung S3C2440A (ARM920T), 400MHz, max. 533Mhz
