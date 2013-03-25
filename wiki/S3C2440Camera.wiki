@@ -17,22 +17,22 @@ The FriendlyARM Mini2440 is a single board computer based on a Samsung S3C2440 A
 
 = Interface =
 
-The '''CAMIF''', also the Camera Interface block is the hardware block that interfaces with different image sensors and provides a standard output that can be used for subsequent image processing.
+The *CAMIF*, also the Camera Interface block is the hardware block that interfaces with different image sensors and provides a standard output that can be used for subsequent image processing.
 
-A typical '''Camera Interface''' would support at least a parallel interface although these days many camera interfaces are beginning to support the Mobile Industry Processor Interface MIPI CSI interface. 
+A typical *Camera Interface* would support at least a parallel interface although these days many camera interfaces are beginning to support the Mobile Industry Processor Interface MIPI CSI interface. 
 
 The camera interface's parallel interface consists of the following lines :-
 
-'''8 to 12 bits parallel data line'''
+*8 to 12 bits parallel data line*
 :These are parallel data lines that carry pixel data. The data transmitted on these lines change with every Pixel Clock (PCLK).
 
-'''Horizontal Sync (HSYNC)'''
+*Horizontal Sync (HSYNC)*
 :This is a special signal that goes from the camera sensor or ISP to the camera interface. An HSYNC indicates that one line of the frame is transmitted.
 
-'''Vertical Sync (VSYNC)'''
+*Vertical Sync (VSYNC)*
 :This signal is transmitted after the entire frame is transferred. This signal is often a way to indicate that one entire frame is transmitted.
 
-'''Pixel Clock (PCLK)'''
+*Pixel Clock (PCLK)*
 :This is the pixel clock and it would change on every pixel.
 
 *NOTE*: The above lines are all treated as input lines to the Camera Interface hardware.
