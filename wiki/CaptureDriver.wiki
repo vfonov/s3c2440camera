@@ -112,6 +112,32 @@ To remove a video device from system, you have to call the following function:
         if (video_register_device(cam->video_dev, VFL_TYPE_GRABBER, video_nr) == -1)
 }}}
 
+=Sensor operations=
+
+{{{
+s3c2440camif_sensor_operations s3c2440camif_sensor_if =
+{
+        .init=s3c2440_ov9650_init,
+        .cleanup=s3c2440_ov9650_cleanup,
+        .set_format=s3c2440_ov9650_set_format,
+        .get_format=s3c2440_ov9650_get_format,
+        .get_largest_format=s3c2440_ov9650_get_largest_format,
+        .poweron=ov9650_poweron,
+        .poweroff=ov9650_poweroff,
+        
+        .get_auto_exposure=s3c2440_ov9650_get_auto_exposure,
+        .get_auto_gain=s3c2440_ov9650_get_auto_gain,
+        .get_auto_wb=s3c2440_ov9650_get_auto_wb,
+        .get_exposure=s3c2440_ov9650_get_exposure,
+        .get_gain=s3c2440_ov9650_get_gain,
+        
+        .set_auto_exposure=s3c2440_ov9650_set_auto_exposure,
+        .set_auto_gain=s3c2440_ov9650_set_auto_gain,
+        .set_auto_wb=s3c2440_ov9650_set_auto_wb,
+        .set_exposure=s3c2440_ov9650_set_exposure,
+        .set_gain=s3c2440_ov9650_set_gain,
+};
+}}}
 
 =IOCTL VS Function pointer in driver =
 
