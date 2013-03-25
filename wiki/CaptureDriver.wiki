@@ -29,7 +29,7 @@ static struct v4l2_file_operations s3c2410camif_fops = {
 };
 
 static const struct v4l2_ioctl_ops s3c2410camif_ioctl_ops = {
-        .vidioc_querycap               = s3c2410camif_querycap,
+        .vidioc_querycap         = s3c2410camif_querycap,
         .vidioc_enum_fmt_vid_cap = s3c2410camif_enum_fmt_vid_cap,
         .vidioc_g_fmt_vid_cap    = s3c2410camif_g_fmt_vid_cap,
         .vidioc_s_fmt_vid_cap    = s3c2410camif_s_fmt_vid_cap,
@@ -45,7 +45,5 @@ static struct video_device s3c2410camif_v4l_template = {
         .ioctl_ops = & s3c2410camif_ioctl_ops,
         .release = video_device_release,
 };
-
-
 
 }}} 
