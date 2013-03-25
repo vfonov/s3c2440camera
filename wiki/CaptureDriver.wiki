@@ -106,6 +106,9 @@ To remove a video device from system, you have to call the following function:
        if (cam->video_dev == NULL)
                   return -ENOMEM;
        *(cam->video_dev) = s3c2410camif_v4l_template;
+
+       cam->sensor_op = &s3c2440camif_sensor_if;
+
        cam->video_dev->minor = -1;
 
         /* register v4l device */
