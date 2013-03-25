@@ -42,3 +42,5 @@ The camera interface's parallel interface consists of the following lines :-
 *OV9650 1.3 Mega Pixels CMOS Camera* for S3C2440/S3C6410  SOC Based Development Boards
 
 <img src ="http://s3c2440camera.googlecode.com/files/ov9650.jpg" height=200px width=200px>
+
+<img src ="http://s3c2440camera.googlecode.com/files/camera_interface.jpg" height=200px width=200px>
