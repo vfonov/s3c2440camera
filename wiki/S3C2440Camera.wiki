@@ -76,3 +76,5 @@ The primary colors in color video are red, green, and blue (RGB). RGB is often u
 ==OV9650==
 
 *Resolution*
+
+|| SXGA  || 1280×1024 ||
