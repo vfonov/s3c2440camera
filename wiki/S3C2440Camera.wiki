@@ -58,5 +58,11 @@ YUV formats are subdivided into two more groups: packed and planar. In the packe
 
 The variations in the different YUV samples are based on how data is sampled, both in the horizontal and vertical directions. The horizontal subsampling interval describes how frequently across a line that a sample of that component is taken, and the vertical interval describes on which lines samples are taken. For example, if the format has a horizontal subsampling period of 2 for both the U and V components, it indicates that U and V samples are taken for every second pixel across a line. If the vertical subsampling period is 1, it indicates that U and V samples are taken on each line of the image.
 
+===UYVY ( Y422 and UYNV )===
+
+UYVY is probably the most popular of the various YUV 4:2:2 formats. It is output as the format of choice by the Radius Cinepak codec and is often the second choice of software MPEG codecs after YV12.
+
+Y422 and UYNV appear to be direct equivalents to the original UYVY.
+
 ==RGB Pixel Format==
 The primary colors in color video are red, green, and blue (RGB). RGB is often used to describe a type of video color-recording scheme and the type of equipment that uses it. It also describes a type of computer color display output signal comprising separately controllable red, green, and blue signals (as opposed to composite video, in which signals are combined before output). RGB monitors typically offer higher resolution than composite monitors.
