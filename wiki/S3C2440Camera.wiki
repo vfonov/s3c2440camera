@@ -48,3 +48,5 @@ The camera interface's parallel interface consists of the following lines :-
 = Pixel Formats =
 
 There are different methods for representing color and intensity information in a video image. The video format that a file uses to store this information is also known as the *pixel format*
+
+There are two major types of pixel formats. They are classified as YUV and RGB pixel formats. 
