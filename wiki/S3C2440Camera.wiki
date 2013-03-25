@@ -36,3 +36,7 @@ The camera interface's parallel interface consists of the following lines :-
 :This is the pixel clock and it would change on every pixel.
 
 *NOTE*: The above lines are all treated as input lines to the Camera Interface hardware.
+
+==Image Sensor==
+
+<img src ="http://s3c2440camera.googlecode.com/files/ov9650.jpg" height=300px width=400px>
