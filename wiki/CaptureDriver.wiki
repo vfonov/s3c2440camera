@@ -85,10 +85,12 @@ The vfd parameter in the examples above is the pointer to the video device struc
 
 type parameter defines the type of registered device. The following values define device types:
 
+{{{
 VFL_TYPE_GRABBER -- video capturing device
 VFL_TYPE_VTX -- teletext device
 VFL_TYPE_VBI -- VBI device
 VFL_TYPE_RADIO -- radio card
+}}}
 
 The nr parameter sets the number of the registered device: 0 for /dev/video0, 1 for /dev/video1, etc. If you want to assign the first available number, then specify -1 for this parameter.
 
