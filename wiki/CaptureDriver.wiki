@@ -47,3 +47,17 @@ static struct video_device s3c2410camif_v4l_template = {
 };
 
 }}} 
+
+Let's look in more detail at the purposes of some fields of these structures.
+
+The video_device structure is declared in the media/v4l2-dev.h> file. It contains general information about the video device. The fops and ioctl_ops fields point at the corresponding structures v4l2_file_operations and v4l2_ioctl_ops.
+
+The release field contains a pointer to the function that will be called when the video device is removed from system. In this case, this field points at the standard video_device_release function, which just releases memory allocated for the video_device structure.
+
+The file_operations structure is defined in the linux/fs.h> file, and is an important kernel structure. It contains pointers to functions, each of which implements a corresponding operation, or to NULL.
+
+The capture driver defines handlers of the main system calls for the device file /dev/video: open, release, read, poll, mmap, ioctl. A specific implementation of these handlers will be considered later in the article.
+
+It is necessary to mention that the video_ioctl2 standard function is used as a handler for the ioctl call. This function performs the initial processing of an ioctl call, analyzing the command's code and calling a corresponding handler using pointers to functions specified in the v4l2_ioctl_ops structure. You can specify your own function for processing ioctl, but in that case, you will have to implement code for command analysis independently. Developers of V4L2 recommend using video_ioctl2, in order to decrease the probabilities of errors in driver code.
+
+The v4l2_ioctl_ops structure stores pointers to handlers of V4L2 commands transmitted by means of an ioctl system call. This structure is declared in <media/v4l2-ioctl.h> file.
