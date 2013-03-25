@@ -39,4 +39,4 @@ The camera interface's parallel interface consists of the following lines :-
 
 ==Image Sensor==
 
-<img src ="http://s3c2440camera.googlecode.com/files/ov9650.jpg" height=200px width=300px>
+<img src ="http://s3c2440camera.googlecode.com/files/ov9650.jpg" height=300px width=300px>
