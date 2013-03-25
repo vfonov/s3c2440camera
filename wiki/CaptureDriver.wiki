@@ -4,11 +4,11 @@ Video For Linux (V4L) is an API that provides unified access to various video ca
 
 we will cover usage of the video capture interface, provided by the /dev/video character device.
 
-=Initializing and registering a V4L2driver=
+= Initializing and registering a V4L2 driver =
 
 *Some important data structures*
 
-To register V4L2device it is necessary to fill three main structures:
+To register V4L2 device it is necessary to fill three main structures:
 
            * video_device, 
            * v4l2_file_operations, 
