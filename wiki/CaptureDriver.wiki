@@ -61,3 +61,37 @@ The capture driver defines handlers of the main system calls for the device file
 It is necessary to mention that the video_ioctl2 standard function is used as a handler for the ioctl call. This function performs the initial processing of an ioctl call, analyzing the command's code and calling a corresponding handler using pointers to functions specified in the v4l2_ioctl_ops structure. You can specify your own function for processing ioctl, but in that case, you will have to implement code for command analysis independently. Developers of V4L2 recommend using video_ioctl2, in order to decrease the probabilities of errors in driver code.
 
 The v4l2_ioctl_ops structure stores pointers to handlers of V4L2 commands transmitted by means of an ioctl system call. This structure is declared in <media/v4l2-ioctl.h> file.
+
+=Registering a video device=
+
+The kernel uses the video_device structure for describing video device. This structure can be created both statically and dynamically, by using the following function:
+
+*struct video_device *video_device_alloc(void);*
+
+
+To use video_device_alloc in your code, you have to include <media/v4l2-common.h>.
+
+Then for releasing memory occupied by the structure, make the following call:
+
+*void video_device_release(struct video_device *vfd);*
+
+
+A video device is registered by the following function:
+
+*int video_register_device(struct video_device *vfd, int type, int nr);*
+
+
+The vfd parameter in the examples above is the pointer to the video device structure that you want to register.
+
+type parameter defines the type of registered device. The following values define device types:
+
+VFL_TYPE_GRABBER -- video capturing device
+VFL_TYPE_VTX -- teletext device
+VFL_TYPE_VBI -- VBI device
+VFL_TYPE_RADIO -- radio card
+
+The nr parameter sets the number of the registered device: 0 for /dev/video0, 1 for /dev/video1, etc. If you want to assign the first available number, then specify -1 for this parameter.
+
+To remove a video device from system, you have to call the following function:
+
+*void video_unregister_device(struct video_device *vfd);*
