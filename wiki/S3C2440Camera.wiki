@@ -17,9 +17,9 @@ The FriendlyARM Mini2440 is a single board computer based on a Samsung S3C2440 A
 
 = Interface =
 
-The '''CAMIF''', also the Camera Interface block is the hardware block that interfaces with different image sensor interfaces and provides a standard output that can be used for subsequent image processing.
+The '''CAMIF''', also the Camera Interface block is the hardware block that interfaces with different image sensors and provides a standard output that can be used for subsequent image processing.
 
-A typical '''Camera Interface''' would support at least a parallel interface although these days many camera interfaces are beginning to support the [[Mobile Industry Processor Interface MIPI CSI interface. 
+A typical '''Camera Interface''' would support at least a parallel interface although these days many camera interfaces are beginning to support the Mobile Industry Processor Interface MIPI CSI interface. 
 
 The camera interface's parallel interface consists of the following lines :-
 
