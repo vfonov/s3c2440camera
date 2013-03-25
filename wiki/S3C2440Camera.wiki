@@ -78,3 +78,10 @@ The primary colors in color video are red, green, and blue (RGB). RGB is often u
 *Resolution*
 
 || SXGA  || 1280×1024 ||
+|| VGA   || 640x480   ||
+|| QVGA  || 320x240   ||
+
+*Pixel format*
+
+RGB (GRB 4:2:2), YUV (4:2:2) and YCbCr (4:2:2) formats
+
