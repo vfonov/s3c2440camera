@@ -12,3 +12,5 @@ The FriendlyARM Mini2440 is a single board computer based on a Samsung S3C2440 A
     * 64MByte or 128MByte Nand Flash
     * Debug Port: COM0 + JTAG + USB Slave
     * 10/100M MB Ethernet, RJ-45 interfaces
+
+<img src ="http://s3c2440camera.googlecode.com/files/mini2440_des.jpg" height=200px width=200px>
