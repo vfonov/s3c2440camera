@@ -14,4 +14,38 @@ To register V4L2 device it is necessary to fill three main structures:
            * v4l2_file_operations, 
            * v4l2_ioctl_ops
 
-Let's look closer at initializing each of these structures, using the example of the VIVI driver:
+Let's look closer at initializing each of these structures,
+
+{{{
+
+static struct v4l2_file_operations s3c2410camif_fops = {
+        .owner = THIS_MODULE,
+        .open = camif_open,
+        .release = camif_release,
+        .read = camif_read,
+        .ioctl = video_ioctl2,
+        .mmap = NULL,//TODO: implement this camif_mmap
+        .poll = camif_poll,
+};
+
+static const struct v4l2_ioctl_ops s3c2410camif_ioctl_ops = {
+        .vidioc_querycap               = s3c2410camif_querycap,
+        .vidioc_enum_fmt_vid_cap = s3c2410camif_enum_fmt_vid_cap,
+        .vidioc_g_fmt_vid_cap    = s3c2410camif_g_fmt_vid_cap,
+        .vidioc_s_fmt_vid_cap    = s3c2410camif_s_fmt_vid_cap,
+        .vidioc_g_ctrl           = s3c2410camif_vidioc_g_ctrl,
+        .vidioc_s_ctrl           = s3c2410camif_vidioc_s_ctrl,
+        .vidioc_enum_input       = s3c2410camif_vidioc_enum_input,
+        .vidioc_queryctrl        = s3c2410camif_vidioc_queryctrl,
+};
+
+static struct video_device s3c2410camif_v4l_template = {
+        .name = "s3c2410camif Camera",
+        .fops = &s3c2410camif_fops,
+        .ioctl_ops = & s3c2410camif_ioctl_ops,
+        .release = video_device_release,
+};
+
+
+
+}}} 
