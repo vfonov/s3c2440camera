@@ -85,3 +85,12 @@ The primary colors in color video are red, green, and blue (RGB). RGB is often u
 
 RGB (GRB 4:2:2), YUV (4:2:2) and YCbCr (4:2:2) formats
 
+*RESET and PWDN *
+
+RESET clears all registers and resets them to their default values. Active high, internal pull-down resistor
+
+Power Down Mode Selection - active high, internal pull-down resistor.
+
+0:Normal mode
+
+1:Power down mode
