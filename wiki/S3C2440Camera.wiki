@@ -74,3 +74,5 @@ Effective bits per pixel : 16
 The primary colors in color video are red, green, and blue (RGB). RGB is often used to describe a type of video color-recording scheme and the type of equipment that uses it. It also describes a type of computer color display output signal comprising separately controllable red, green, and blue signals (as opposed to composite video, in which signals are combined before output). RGB monitors typically offer higher resolution than composite monitors.
 
 ==OV9650==
+
+*Resolution*
