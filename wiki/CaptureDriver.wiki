@@ -1,0 +1,8 @@
+= Introduction =
+
+Video For Linux (V4L) is an API that provides unified access to various video capturing devices, such as TV tuners, USB web cameras, etc
+
+we will cover usage of the video capture interface, provided by the /dev/video character device.
+
+= Details =
+
