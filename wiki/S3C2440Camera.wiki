@@ -50,3 +50,13 @@ The camera interface's parallel interface consists of the following lines :-
 There are different methods for representing color and intensity information in a video image. The video format that a file uses to store this information is also known as the *pixel format*
 
 There are two major types of pixel formats. They are classified as *YUV* and *RGB* pixel formats. 
+
+==YUV Pixel Format==
+YUV Color System is a color-encoding scheme for natural pictures in which the luminance (the black-and-white component of a video signal that controls the light intensity) and chrominance (the color component of the video signal) are separate. The human eye is less sensitive to color variations than to intensity variations, so YUV allows the encoding of luminance (Y) information at full bandwidth and chrominance (UV) information at half bandwidth.
+
+YUV formats are subdivided into two more groups: packed and planar. In the packed format, the Y, U, and V components are stored in a single array. The three components packed into what is known as a macropixel (two pixels stored in one unsigned integer value). Conversely, the planar format stores these components in three separate arrays and combines the planes to form the image.
+
+The variations in the different YUV samples are based on how data is sampled, both in the horizontal and vertical directions. The horizontal subsampling interval describes how frequently across a line that a sample of that component is taken, and the vertical interval describes on which lines samples are taken. For example, if the format has a horizontal subsampling period of 2 for both the U and V components, it indicates that U and V samples are taken for every second pixel across a line. If the vertical subsampling period is 1, it indicates that U and V samples are taken on each line of the image.
+
+==RGB Pixel Format==
+The primary colors in color video are red, green, and blue (RGB). RGB is often used to describe a type of video color-recording scheme and the type of equipment that uses it. It also describes a type of computer color display output signal comprising separately controllable red, green, and blue signals (as opposed to composite video, in which signals are combined before output). RGB monitors typically offer higher resolution than composite monitors.
