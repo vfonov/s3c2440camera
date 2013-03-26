@@ -54,3 +54,34 @@ Register :CIGCTRL
 ||SwRst ||[31] ||Camera interface software reset ||
 ||CamRst ||[30]|| External camera processor reset or power down ||
 ||Reserved|| [29]|| This bit is reserved and the value must be 1. ||
+
+{{{
+/* software reset camera interface. */
+static void __inline__ soft_reset_camif(void)
+{       
+        u32 cigctrl;
+        
+        cigctrl = (1<<31)|(1<<29);
+        iowrite32(cigctrl, S3C244X_CIGCTRL);
+        mdelay(10);
+
+        cigctrl = (1<<29);
+        iowrite32(cigctrl, S3C244X_CIGCTRL);
+        mdelay(10);
+}
+
+/* software reset camera interface. */
+static void __inline__ hw_reset_camif(void)
+{
+        u32 cigctrl;
+
+        cigctrl = (1<<30)|(1<<29);
+        iowrite32(cigctrl, S3C244X_CIGCTRL);
+        mdelay(10);
+
+        cigctrl = (1<<29);
+        iowrite32(cigctrl, S3C244X_CIGCTRL);
+        mdelay(10);
+
+}
+}}}
