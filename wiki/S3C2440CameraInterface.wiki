@@ -30,6 +30,7 @@ AHB bus.
 
 * The C-path stores the YCbCr 4:2:0 or 4:2:2 image data into memory for Codec as MPEG-4, H.263,etc. 
 
+
 *FRAME MEMORY HIRERARCHY*
 
 Frame memories consist of four ping-pong memories for each of P and C paths .
