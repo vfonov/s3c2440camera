@@ -29,3 +29,11 @@ AHB bus.
 * The P-path stores the RGB image data intomemory for PIP. 
 
 * The C-path stores the YCbCr 4:2:0 or 4:2:2 image data into memory for Codec as MPEG-4, H.263,etc. 
+
+*FRAME MEMORY HIRERARCHY*
+
+Frame memories consist of four ping-pong memories for each of P and C paths .
+
+C-path ping-pong memories have three element memories – luminance Y, chrominance Cb, and chrominance Cr.
+
+If AHB-bus traffic is not enough for the DMA operation to complete during one horizontal line period, it may lead to malfunctioning
