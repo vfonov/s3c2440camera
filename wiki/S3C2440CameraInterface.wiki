@@ -50,6 +50,7 @@ For preview path, two different formats exist. One pixel (Color 1 pixel) is one 
 two pixels are one word for RGB 16-bit format.
 
 Register :CIGCTRL
+||CIGCTRL||BIT||Description||
 ||SwRst ||[31] ||Camera interface software reset ||
 ||CamRst ||[30]|| External camera processor reset or power down ||
 ||Reserved|| [29]|| This bit is reserved and the value must be 1. ||
