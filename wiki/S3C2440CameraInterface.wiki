@@ -48,3 +48,8 @@ AHB bus carries 32-bit word data. So, CAMIF makes each of the Y-Cb-Cr words in l
 
 For preview path, two different formats exist. One pixel (Color 1 pixel) is one word for RGB 24-bit format. Otherwise, 
 two pixels are one word for RGB 16-bit format.
+
+Register :CIGCTRL
+||SwRst ||[31] ||Camera interface software reset ||
+||CamRst ||[30]|| External camera processor reset or power down ||
+||Reserved|| [29]|| This bit is reserved and the value must be 1. ||
