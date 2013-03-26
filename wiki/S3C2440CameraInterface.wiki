@@ -1,0 +1,31 @@
+= Introduction =
+*CAMIF (CAMera InterFace)* within the S3C2440A consists of 7 parts 
+	* pattern mux
+	* capturing unit
+	* preview scaler
+	* codec scaler
+	* preview DMA
+	* codec DMA
+	* SFR.
+
+* The CAMIF supports ITU-R BT.601/656 YCbCr 8-bit standard. 
+
+* Maximum input size is 4096x4096 pixels (2048x2048 pixels for scaling) and two scalers exist. 
+
+* Preview scaler is dedicated to generate smaller size image like PIP (Picture In Picture) 
+
+* codec scaler is dedicated to generate codec useful image like plane type YCbCr 4:2:0 or 4:2:2.
+
+* Two master DMAs can do mirror and rotate the captured image for mobile environments. 
+
+*TWO DMA PATHS*
+
+CAMIF has 2 DMA paths. P-path (Preview path) and C-path (Codec path) are separated from each other on the
+AHB bus. 
+
+
+* In view of the system bus, both the paths are independent. 
+
+* The P-path stores the RGB image data intomemory for PIP. 
+
+* The C-path stores the YCbCr 4:2:0 or 4:2:2 image data into memory for Codec as MPEG-4, H.263,etc. 
