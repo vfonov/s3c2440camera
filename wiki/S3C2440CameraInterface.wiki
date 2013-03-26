@@ -38,3 +38,13 @@ Frame memories consist of four ping-pong memories for each of P and C paths .
 C-path ping-pong memories have three element memories – luminance Y, chrominance Cb, and chrominance Cr.
 
 If AHB-bus traffic is not enough for the DMA operation to complete during one horizontal line period, it may lead to malfunctioning
+
+*MEMORY STORING METHOD*
+
+The little-endian method in codec path is used to store in the frame memory. The pixels are stored from LSB to MSB
+side. 
+
+AHB bus carries 32-bit word data. So, CAMIF makes each of the Y-Cb-Cr words in little-endian style. 
+
+For preview path, two different formats exist. One pixel (Color 1 pixel) is one word for RGB 24-bit format. Otherwise, 
+two pixels are one word for RGB 16-bit format.
