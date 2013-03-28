@@ -87,6 +87,9 @@ static void __inline__ hw_reset_camif(void)
 }
 }}}
 
+
+*Register:CISRCFMT[Input source format register]*
+
 {{{
 /* update CISRCFMT only. */
 static void __inline__ update_source_fmt_regs(s3c2440camif_dev * pdev)
