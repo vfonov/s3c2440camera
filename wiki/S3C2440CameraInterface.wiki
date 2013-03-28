@@ -108,3 +108,19 @@ static void __inline__ update_source_fmt_regs(s3c2440camif_dev * pdev)
         iowrite32(cisrcfmt, S3C244X_CISRCFMT);
 }
 }}}
+
+*CICOTRGFMT [Target image format of codec DMA]*
+
+
+{{{
+static void __inline__ update_target_fmt_regs(s3c2440camif_dev * pdev)
+
+ /* CICOTRGFMT. */
+  cicrtrgfmt =  (1<<31) //use input YCbCr:422 mode
+               |(1<<30) //use output YCbCr:422 mode
+               |(pdev->v2f.fmt.pix.width<<16)   // horizontal pixel number of target image
+               |(0<<14)            // don't mirror or rotation.
+               |(pdev->v2f.fmt.pix.height<<0); // vertical pixel number of target image
+
+  iowrite32(cicrtrgfmt, S3C244X_CICOTRGFMT);
+}}}
