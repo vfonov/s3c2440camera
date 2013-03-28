@@ -109,7 +109,7 @@ static void __inline__ update_source_fmt_regs(s3c2440camif_dev * pdev)
 }
 }}}
 
-*CICOTRGFMT [Target image format of codec DMA]*
+*CICOTRGFMT Target image format of codec DMA*
 
 
 {{{
