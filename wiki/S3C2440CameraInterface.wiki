@@ -86,3 +86,22 @@ static void __inline__ hw_reset_camif(void)
 
 }
 }}}
+
+{{{
+/* update CISRCFMT only. */
+static void __inline__ update_source_fmt_regs(s3c2440camif_dev * pdev)
+{
+        u32 cisrcfmt;
+
+        cisrcfmt = (1<<31)                                      // ITU-R BT.601 YCbCr 8-bit mode
+                                |(0<<30)                                // CB,Cr value offset cntrol for YCbCr
+                                |(pdev->sensor.width<<16)       // source image width
+//                              |(0<<14)                                // input order is YCbYCr
+//                              |(1<<14)                                // input order is YCrYCb
+                                |(2<<14)                                // input order is CbYCrY
+//                              |(3<<14)                                // input order is CrYCbY
+                                |(pdev->sensor.height<<0);      // source image height
+
+        iowrite32(cisrcfmt, S3C244X_CISRCFMT);
+}
+}}}
